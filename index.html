@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta charset="utf-8" />
+
+    <title>Mashupaward</title>
+
+    <link href="//netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+    <script type="text/javascript" src="/js/jquery.periodicalupdater.js"></script>
+    <script type="text/javascript" src="//netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="http://mb.cloud.nifty.com/sdk/javascript/ncmb-1.0.0.min.js"></script>
+    <script type="text/javascript" src="/js/peer.js"></script>
+    <script type="text/javascript" src="/js/main.js"></script>
+
+</head>
+<body>
+<div class="navbar navbar-inverse">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+            </button>
+            <a class="navbar-brand" href="#">翻訳機能付きテレビ電話</a>
+        </div>
+        <div class="navbar-collapse collapse">
+            <form class="navbar-form navbar-right">
+                <div class="form-group">
+                    <input type="text" placeholder="ユーザ名を入力" class="" id="name">
+                    <select class="medium" id="userlist"></select>
+                    <select class="medium" id="langselecter">
+                        <option value="en-US">I'm english speaker</option>
+                        <option value="ja-JP">私は日本語話者です</option>
+                    </select>
+                    <button type="submit" class="btn btn-success" id="regist" disabled>利用する</button>
+                    <button type="submit" class="btn btn-primary" id="exit" disabled>終了する</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<section id="View">
+    <p>注意：</p>
+    <p>・このシステムに個人情報を登録しないでください。</p>
+    <p>・このシステムを利用して発生したいかなる損害等に、開発者は一切関知しません。</p>
+    <p>・本サービスを利用した時点でこの注意事項に同意した事といたします。</p>
+    <video id="remoteVideo" autoplay></video>
+    <p id="myTelop"></p>
+    <video id="myVideo" autoplay></video>
+</section>
+
+</body>
+</html>

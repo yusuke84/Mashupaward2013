@@ -1,0 +1,39 @@
+html {
+    width: 100%;
+    height: 100%;
+}
+body {
+    width: 100%;
+    height: 100%;
+}
+section.View {
+    width: 100%;
+    height: 100%;
+}
+#remoteVideo {
+    width: 100%;
+    height: 100%;
+    position: fixed;
+    z-index: 1;
+}
+
+#myVideo {
+    width: 200px;
+    height: 200px;
+    position: absolute;
+    bottom: 0;
+    right: 5%;
+    z-index: 2;
+}
+
+#myTelop {
+    font-family:'ヒラギノ角ゴ Pro W3','Hiragino Kaku Gothic Pro','メイリオ',Meiryo,'ＭＳ Ｐゴシック',sans-serif;
+    background-color:rgba(255,255,255,0.65);
+    color: #000;
+    font-size:200%;
+    margin: 50px;
+    position: absolute;
+    bottom: 0;
+    z-index: 3;
+
+}
