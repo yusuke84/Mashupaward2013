@@ -146,8 +146,7 @@ function speechStart(){
         console.log('終了');
         var now = new Date().getTime();
         if(now-recognition.timer<1000){
-            alert("Aborting recognition\n" +
-                " Only one speech recognition per browser allowed");
+            alert("Google Web Speech APIが異常動作しました。\n" + "同一ブラウザ複数タブでチャットを試みている場合は正常な挙動です。\n" + "それ以外の場合はブラウザを一度再起動してください。");
             speechStop();
             return;
         }
