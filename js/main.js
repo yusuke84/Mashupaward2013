@@ -122,19 +122,14 @@ function speechStart(){
     recognition.onresult = function(event) {
         for(var i=event.resultIndex; i<event.results.length; i++){
             var result = event.results[i];
-            if(result.isFinal){
+            if(result.isFinal && langselecter.transfrom != langselecter.transto){
                 $.getJSON(translatorURL,{text: result[0].transcript,from: langselecter.transfrom,to: langselecter.transto},
                     function(json){
-                        console.log($(json.translation).text());
-                        str2binary(JSON.stringify($(json.translation).text()),function(data){
-                            var message_ = {
-                                transcript: data
-                            }
-                            console.log(message_);
-                            connhandl.send(message_);
-                        });
+                        sendMesg(JSON.stringify($(json.translation).text()));
                     }
                 );
+            }else if(result.isFinal && langselecter.transfrom == langselecter.transto){
+                sendMesg(JSON.stringify(result[0].transcript));
             }
             console.log('result[' + i + '] = ' + result[0].transcript);
             console.log('confidence = ' + result[0].confidence);
@@ -158,7 +153,7 @@ function speechStart(){
 
 function speechStop(){
 
-    recognition.stop();
+    //recognition.stop();
     recognition.abort();
 
 }
@@ -219,6 +214,19 @@ function translangselecter(peerlang){
             }
             break;
     }
+}
+
+function sendMesg(msg){
+
+    console.log(msg);
+    str2binary(msg,function(data){
+        var message_ = {
+            transcript: data
+        }
+        console.log(message_);
+        connhandl.send(message_);
+    });
+
 }
 
 $(document).ready(function(){
