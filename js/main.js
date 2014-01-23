@@ -327,7 +327,12 @@ $(document).ready(function(){
                             }
                         });
 
-                        peer = new Peer(myPeerId,{key: PEERJSAPIKEY,debug: true});
+                        peer = new Peer(myPeerId,{
+                            host: PEERSERVERHOST,
+                            key: PEERJSAPIKEY,
+                            secure: false,
+                            debug: 3
+                        });
 
                     }
 
