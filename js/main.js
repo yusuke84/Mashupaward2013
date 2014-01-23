@@ -9,8 +9,9 @@
 var NCMBAPIKEY = '';
 var NCMBCLIKEY = '';
 var PEERJSAPIKEY = '';
+var PEERSERVERHOST = '';
 
-var translatorURL = 'https://think-sv.net/mashup/translate/translator.php';
+var translatorURL = '';
 
 var peer;
 var myPeerId;
@@ -71,7 +72,7 @@ function getUserList(){
 function changeUI(){
 
     if(flag.status == "registered"){
-        $("#regist").text("相手を呼び出す");
+        $("#regist").text("Call");
         if($('#userlist').length == 0) $('#regist').attr('disabled', true);
         $('#exit').attr('disabled', false);
 
@@ -79,7 +80,7 @@ function changeUI(){
         $('#regist').attr('disabled', true);
 
     }else if(flag.status == "regist"){
-        $("#regist").text("利用する");
+        $("#regist").text("Start");
         $('#exit').attr('disabled', true);
     }
 
@@ -277,7 +278,12 @@ $(document).ready(function(){
 
                         client = new ClientObject();
 
-                        peer = new Peer({key: PEERJSAPIKEY,debug: true});
+                        peer = new Peer({
+                            host: PEERSERVERHOST,
+                            key: PEERJSAPIKEY,
+                            secure: false,
+                            debug: 3
+                        });
 
                         peer.on('open', function(id) {
 
