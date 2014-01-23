@@ -337,7 +337,7 @@ $(document).ready(function(){
                     }
 
                     //メディア取得
-                    navigator.getUserMedia({audio: true, video: true}, function(stream){
+                    navigator.getUserMedia({audio: false, video: true}, function(stream){
                         // Set your video displays
                         $('#myVideo').prop('src', URL.createObjectURL(stream));
 
