@@ -1,4 +1,4 @@
-/*! peerjs.js build:0.3.2, development. Copyright(c) 2013 Michelle Bu <michelle@michellebu.com> */
+/*! peerjs.js build:0.3.7, development. Copyright(c) 2013 Michelle Bu <michelle@michellebu.com> */
 (function(exports){
 var binaryFeatures = {};
 binaryFeatures.useBlobBuilder = (function(){
@@ -30,13 +30,13 @@ BufferBuilder.prototype.append = function(data) {
   if(typeof data === 'number') {
     this._pieces.push(data);
   } else {
-    this._flush();
+    this.flush();
     this._parts.push(data);
   }
 };
 
-BufferBuilder.prototype._flush = function() {
-  if (this._pieces.length > 0) {    
+BufferBuilder.prototype.flush = function() {
+  if (this._pieces.length > 0) {
     var buf = new Uint8Array(this._pieces);
     if(!binaryFeatures.useArrayBufferView) {
       buf = buf.buffer;
@@ -47,7 +47,7 @@ BufferBuilder.prototype._flush = function() {
 };
 
 BufferBuilder.prototype.getBuffer = function() {
-  this._flush();
+  this.flush();
   if(binaryFeatures.useBlobBuilder) {
     var builder = new BlobBuilder();
     for(var i = 0, ii = this._parts.length; i < ii; i++) {
@@ -63,9 +63,10 @@ exports.BinaryPack = {
     var unpacker = new Unpacker(data);
     return unpacker.unpack();
   },
-  pack: function(data, utf8){
-    var packer = new Packer(utf8);
-    var buffer = packer.pack(data);
+  pack: function(data){
+    var packer = new Packer();
+    packer.pack(data);
+    var buffer = packer.getBuffer();
     return buffer;
   }
 };
@@ -232,9 +233,9 @@ Unpacker.prototype.unpack_raw = function(size){
   }
   var buf = this.dataBuffer.slice(this.index, this.index + size);
   this.index += size;
-  
+
     //buf = util.bufferToString(buf);
-  
+
   return buf;
 }
 
@@ -307,10 +308,13 @@ Unpacker.prototype.read = function(length){
     throw new Error('BinaryPackFailure: read index out of range');
   }
 }
-  
-function Packer(utf8){
-  this.utf8 = utf8;
+
+function Packer(){
   this.bufferBuilder = new BufferBuilder();
+}
+
+Packer.prototype.getBuffer = function(){
+  return this.bufferBuilder.getBuffer();
 }
 
 Packer.prototype.pack = function(value){
@@ -348,7 +352,7 @@ Packer.prototype.pack = function(value){
         }
       } else if ('BYTES_PER_ELEMENT' in value){
         if(binaryFeatures.useArrayBufferView) {
-          this.pack_bin(value);
+          this.pack_bin(new Uint8Array(value.buffer));
         } else {
           this.pack_bin(value.buffer);
         }
@@ -365,7 +369,7 @@ Packer.prototype.pack = function(value){
   } else {
     throw new Error('Type "' + type + '" not yet supported');
   }
-  return this.bufferBuilder.getBuffer();
+  this.bufferBuilder.flush();
 }
 
 
@@ -387,13 +391,8 @@ Packer.prototype.pack_bin = function(blob){
 }
 
 Packer.prototype.pack_string = function(str){
-  var length;
-  if (this.utf8) {
-    var blob = new Blob([str]);
-    length = blob.size;
-  } else {
-    length = str.length;
-  }
+  var length = utf8Length(str);
+
   if (length <= 0x0f){
     this.pack_uint8(0xb0 + length);
   } else if (length <= 0xffff){
@@ -556,6 +555,25 @@ Packer.prototype.pack_int64 = function(num){
   this.bufferBuilder.append((low  & 0x00ff0000) >>> 16);
   this.bufferBuilder.append((low  & 0x0000ff00) >>>  8);
   this.bufferBuilder.append((low  & 0x000000ff));
+}
+
+function _utf8Replace(m){
+  var code = m.charCodeAt(0);
+
+  if(code <= 0x7ff) return '00';
+  if(code <= 0xffff) return '000';
+  if(code <= 0x1fffff) return '0000';
+  if(code <= 0x3ffffff) return '00000';
+  return '000000';
+}
+
+function utf8Length(str){
+  if (str.length > 600) {
+    // Blob method faster for large strings
+    return (new Blob([str])).size;
+  } else {
+    return str.replace(/[^\u0000-\u007F]/g, _utf8Replace).length;
+  }
 }
 /**
  * Light EventEmitter. Ported from Node.js/events.js
@@ -1038,11 +1056,17 @@ exports.RTCSessionDescription = window.mozRTCSessionDescription || window.RTCSes
 exports.RTCPeerConnection = window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.RTCPeerConnection;
 exports.RTCIceCandidate = window.mozRTCIceCandidate || window.RTCIceCandidate;
 var defaultConfig = {'iceServers': [{ 'url': 'stun:stun.l.google.com:19302' }]};
+var dataCount = 1;
+
 var util = {
   noop: function() {},
 
   CLOUD_HOST: '0.peerjs.com',
   CLOUD_PORT: 9000,
+
+  // Browsers that need chunking:
+  chunkedBrowsers: {'Chrome': 1},
+  chunkedMTU: 16300, // The original 60000 bytes setting does not work when sending data from Firefox to Chrome, which is "cut off" after 16384 bytes and delivered individually.
 
   // Logging logic
   logLevel: 0,
@@ -1121,8 +1145,8 @@ var util = {
     var data = true;
     var audioVideo = true;
 
-    var binary = false;
-    var reliable = false;
+    var binaryBlob = false;
+    var sctp = false;
     var onnegotiationneeded = !!window.webkitRTCPeerConnection;
 
     var pc, dc;
@@ -1145,7 +1169,7 @@ var util = {
       // Binary test
       try {
         dc.binaryType = 'blob';
-        binary = true;
+        binaryBlob = true;
       } catch (e) {
       }
 
@@ -1155,7 +1179,7 @@ var util = {
       var reliablePC = new RTCPeerConnection(defaultConfig, {});
       try {
         var reliableDC = reliablePC.createDataChannel('_PEERJSRELIABLETEST', {});
-        reliable = reliableDC.reliable;
+        sctp = reliableDC.reliable;
       } catch (e) {
       }
       reliablePC.close();
@@ -1192,8 +1216,10 @@ var util = {
     return {
       audioVideo: audioVideo,
       data: data,
-      binary: binary,
-      reliable: reliable,
+      binaryBlob: binaryBlob,
+      binary: sctp, // deprecated; sctp implies binary support.
+      reliable: sctp, // deprecated; sctp implies reliable data.
+      sctp: sctp,
       onnegotiationneeded: onnegotiationneeded
     };
   }()),
@@ -1281,6 +1307,33 @@ var util = {
   }(this)),
 
   // Binary stuff
+
+  // chunks a blob.
+  chunk: function(bl) {
+    var chunks = [];
+    var size = bl.size;
+    var start = index = 0;
+    var total = Math.ceil(size / util.chunkedMTU);
+    while (start < size) {
+      var end = Math.min(size, start + util.chunkedMTU);
+      var b = bl.slice(start, end);
+
+      var chunk = {
+        __peerData: dataCount,
+        n: index,
+        data: b,
+        total: total
+      };
+
+      chunks.push(chunk);
+
+      start = end;
+      index += 1;
+    }
+    dataCount += 1;
+    return chunks;
+  },
+
   blobToArrayBuffer: function(blob, cb){
     var fr = new FileReader();
     fr.onload = function(evt) {
@@ -1470,7 +1523,7 @@ Peer.prototype._handleMessage = function(message) {
       this._abort('unavailable-id', 'ID `' + this.id + '` is taken');
       break;
     case 'INVALID-KEY': // The given API key cannot be found.
-      this._abort('invalid-key', 'API KEY "' + this._key + '" is invalid');
+      this._abort('invalid-key', 'API KEY "' + this.options.key + '" is invalid');
       break;
 
     //
@@ -1495,7 +1548,7 @@ Peer.prototype._handleMessage = function(message) {
           var connection = new MediaConnection(peer, this, {
             connectionId: connectionId,
             _payload: payload,
-            metadata: payload.metadata,
+            metadata: payload.metadata
           });
           this._addConnection(peer, connection);
           this.emit('call', connection);
@@ -1657,11 +1710,12 @@ Peer.prototype.destroy = function() {
 
 /** Disconnects every connection on this peer. */
 Peer.prototype._cleanup = function() {
-  var peers = Object.keys(this.connections);
-  for (var i = 0, ii = peers.length; i < ii; i++) {
-    this._cleanupPeer(peers[i]);
+  if (this.connections) {
+    var peers = Object.keys(this.connections);
+    for (var i = 0, ii = peers.length; i < ii; i++) {
+      this._cleanupPeer(peers[i]);
+    }
   }
-
   this.emit('close');
 }
 
@@ -1701,7 +1755,6 @@ function DataConnection(peer, provider, options) {
   if (!(this instanceof DataConnection)) return new DataConnection(peer, provider, options);
   EventEmitter.call(this);
 
-  // TODO: perhaps default serialization should be binary-utf8?
   this.options = util.extend({
     serialization: 'binary',
     reliable: false
@@ -1720,6 +1773,18 @@ function DataConnection(peer, provider, options) {
   this.serialization = this.options.serialization;
   this.reliable = this.options.reliable;
 
+  // Data channel buffering.
+  this._buffer = [];
+  this._buffering = false;
+  this.bufferSize = 0;
+
+  // For storing large data.
+  this._chunkedData = {};
+
+  if (this.options._payload) {
+    this._peerBrowser = this.options._payload.browser;
+  }
+
   Negotiator.startConnection(
     this,
     this.options._payload || {
@@ -1734,14 +1799,13 @@ DataConnection._idPrefix = 'dc_';
 
 /** Called by the Negotiator when the DataChannel is ready. */
 DataConnection.prototype.initialize = function(dc) {
-  this._dc = dc;
+  this._dc = this.dataChannel = dc;
   this._configureDataChannel();
 }
 
 DataConnection.prototype._configureDataChannel = function() {
   var self = this;
-  if (util.supports.binary) {
-    // Webkit doesn't support binary yet
+  if (util.supports.sctp) {
     this._dc.binaryType = 'arraybuffer';
   }
   this._dc.onopen = function() {
@@ -1751,7 +1815,7 @@ DataConnection.prototype._configureDataChannel = function() {
   }
 
   // Use the Reliable shim for non Firefox browsers
-  if (!util.supports.reliable && this.reliable) {
+  if (!util.supports.sctp && this.reliable) {
     this._reliable = new Reliable(this._dc, util.debug);
   }
 
@@ -1793,6 +1857,29 @@ DataConnection.prototype._handleDataMessage = function(e) {
   } else if (this.serialization === 'json') {
     data = JSON.parse(data);
   }
+
+  // Check if we've chunked--if so, piece things back together.
+  // We're guaranteed that this isn't 0.
+  if (data.__peerData) {
+    var id = data.__peerData;
+    var chunkInfo = this._chunkedData[id] || {data: [], count: 0, total: data.total};
+
+    chunkInfo.data[data.n] = data.data;
+    chunkInfo.count += 1;
+
+    if (chunkInfo.total === chunkInfo.count) {
+      // We've received all the chunks--time to construct the complete data.
+      data = new Blob(chunkInfo.data);
+      this._handleDataMessage({data: data});
+
+      // We can also just delete the chunks now.
+      delete this._chunkedData[id];
+    }
+
+    this._chunkedData[id] = chunkInfo;
+    return;
+  }
+
   this.emit('data', data);
 }
 
@@ -1811,7 +1898,7 @@ DataConnection.prototype.close = function() {
 }
 
 /** Allows user to send data. */
-DataConnection.prototype.send = function(data) {
+DataConnection.prototype.send = function(data, chunked) {
   if (!this.open) {
     this.emit('error', new Error('Connection is not open. You should listen for the `open` event before sending messages.'));
     return;
@@ -1824,20 +1911,82 @@ DataConnection.prototype.send = function(data) {
   }
   var self = this;
   if (this.serialization === 'json') {
-    this._dc.send(JSON.stringify(data));
-  } else if ('binary-utf8'.indexOf(this.serialization) !== -1) {
-    var utf8 = (this.serialization === 'binary-utf8');
-    var blob = util.pack(data, utf8);
+    this._bufferedSend(JSON.stringify(data));
+  } else if (this.serialization === 'binary' || this.serialization === 'binary-utf8') {
+    var blob = util.pack(data);
+
+    // For Chrome-Firefox interoperability, we need to make Firefox "chunk"
+    // the data it sends out.
+    var needsChunking = util.chunkedBrowsers[this._peerBrowser] || util.chunkedBrowsers[util.browser];
+    if (needsChunking && !chunked && blob.size > util.chunkedMTU) {
+      this._sendChunks(blob);
+      return;
+    }
+
     // DataChannel currently only supports strings.
-    if (!util.supports.binary) {
-      util.blobToBinaryString(blob, function(str){
-        self._dc.send(str);
+    if (!util.supports.sctp) {
+      util.blobToBinaryString(blob, function(str) {
+        self._bufferedSend(str);
+      });
+    } else if (!util.supports.binaryBlob) {
+      // We only do this if we really need to (e.g. blobs are not supported),
+      // because this conversion is costly.
+      util.blobToArrayBuffer(blob, function(ab) {
+        self._bufferedSend(ab);
       });
     } else {
-      this._dc.send(blob);
+      this._bufferedSend(blob);
     }
   } else {
-    this._dc.send(data);
+    this._bufferedSend(data);
+  }
+}
+
+DataConnection.prototype._bufferedSend = function(msg) {
+  if (this._buffering || !this._trySend(msg)) {
+    this._buffer.push(msg);
+    this.bufferSize = this._buffer.length;
+  }
+}
+
+// Returns true if the send succeeds.
+DataConnection.prototype._trySend = function(msg) {
+  try {
+    this._dc.send(msg);
+  } catch (e) {
+    this._buffering = true;
+
+    var self = this;
+    setTimeout(function() {
+      // Try again.
+      self._buffering = false;
+      self._tryBuffer();
+    }, 100);
+    return false;
+  }
+  return true;
+}
+
+// Try to send the first message in the buffer.
+DataConnection.prototype._tryBuffer = function() {
+  if (this._buffer.length === 0) {
+    return;
+  }
+
+  var msg = this._buffer[0];
+
+  if (this._trySend(msg)) {
+    this._buffer.shift();
+    this.bufferSize = this._buffer.length;
+    this._tryBuffer();
+  }
+}
+
+DataConnection.prototype._sendChunks = function(blob) {
+  var blobs = util.chunk(blob);
+  for (var i = 0, ii = blobs.length; i < ii; i += 1) {
+    var blob = blobs[i];
+    this.send(blob, true);
   }
 }
 
@@ -1846,6 +1995,8 @@ DataConnection.prototype.handleMessage = function(message) {
 
   switch (message.type) {
     case 'ANSWER':
+      this._peerBrowser = payload.browser;
+
       // Forward to negotiator
       Negotiator.handleSDP(message.type, this, payload.sdp);
       break;
@@ -1978,12 +2129,12 @@ Negotiator.startConnection = function(connection, options) {
       var config = {};
       // Dropping reliable:false support, since it seems to be crashing
       // Chrome.
-      /*if (util.supports.reliable && !options.reliable) {
+      /*if (util.supports.sctp && !options.reliable) {
         // If we have canonical reliable support...
         config = {maxRetransmits: 0};
       }*/
       // Fallback to ensure older browsers don't crash.
-      if (!util.supports.reliable) {
+      if (!util.supports.sctp) {
         config = {reliable: options.reliable};
       }
       var dc = pc.createDataChannel(connection.label, config);
@@ -2049,7 +2200,7 @@ Negotiator._startPeerConnection = function(connection) {
   var id = Negotiator._idPrefix + util.randomToken();
   var optional = {};
 
-  if (connection.type === 'data' && !util.supports.reliable) {
+  if (connection.type === 'data' && !util.supports.sctp) {
     optional = {optional: [{RtpDataChannels: true}]};
   } else if (connection.type === 'media') {
     // Interop req for chrome.
@@ -2082,7 +2233,7 @@ Negotiator._setupListeners = function(connection, pc, pc_id) {
           type: connection.type,
           connectionId: connection.id
         },
-        dst: peerId,
+        dst: peerId
       });
     }
   };
@@ -2150,7 +2301,7 @@ Negotiator._makeOffer = function(connection) {
   pc.createOffer(function(offer) {
     util.log('Created offer.');
 
-    if (!util.supports.reliable && connection.type === 'data' && connection.reliable) {
+    if (!util.supports.sctp && connection.type === 'data' && connection.reliable) {
       offer.sdp = Reliable.higherBandwidthSDP(offer.sdp);
     }
 
@@ -2162,13 +2313,13 @@ Negotiator._makeOffer = function(connection) {
           sdp: offer,
           type: connection.type,
           label: connection.label,
+          connectionId: connection.id,
           reliable: connection.reliable,
           serialization: connection.serialization,
           metadata: connection.metadata,
-          connectionId: connection.id,
-          sctp: util.supports.reliable
+          browser: util.browser
         },
-        dst: connection.peer,
+        dst: connection.peer
       });
     }, function(err) {
       connection.provider.emit('error', err);
@@ -2186,7 +2337,7 @@ Negotiator._makeAnswer = function(connection) {
   pc.createAnswer(function(answer) {
     util.log('Created answer.');
 
-    if (!util.supports.reliable && connection.type === 'data' && connection.reliable) {
+    if (!util.supports.sctp && connection.type === 'data' && connection.reliable) {
       answer.sdp = Reliable.higherBandwidthSDP(answer.sdp);
     }
 
@@ -2197,7 +2348,8 @@ Negotiator._makeAnswer = function(connection) {
         payload: {
           sdp: answer,
           type: connection.type,
-          connectionId: connection.id
+          connectionId: connection.id,
+          browser: util.browser
         },
         dst: connection.peer
       });
