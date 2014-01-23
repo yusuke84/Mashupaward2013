@@ -30,6 +30,16 @@ var recognition;
 
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia
 
+// SpeechSynthesisオブジェクトを生成
+var msgSpeech = new SpeechSynthesisUtterance();
+msgSpeech.volume = 1; // 0 to 1
+msgSpeech.rate = 1; // 0.1 to 10
+msgSpeech.pitch = 2; //0 to 2
+msgSpeech.lang = 'en-US';
+msgSpeech.onend = function(e) {
+    console.log('Finished in ' + event.elapsedTime + ' seconds.');
+};
+
 NCMB.initialize(NCMBAPIKEY, NCMBCLIKEY);
 ClientObject = NCMB.Object.extend('client');
 
@@ -179,6 +189,8 @@ function updateTelop(msg){
     binary2str(msg,function(data){
         console.log(data);
         $('#myTelop').text(data.transcript);
+        msgSpeech.text = data.transcript;
+        speechSynthesis.speak(msgSpeech);
     });
 }
 
