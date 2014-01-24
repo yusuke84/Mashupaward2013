@@ -159,7 +159,7 @@ button:hover {
     font-size:200%;
     position: absolute;
     bottom: 20px;
-    width: 100px;
+    width: 100%;
     text-align: center;
     z-index: 3;
 
