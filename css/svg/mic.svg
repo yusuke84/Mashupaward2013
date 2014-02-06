@@ -1,0 +1,26 @@
+<svg width="30" height="33" id="svg-source" version="1.1"
+xmlns="http://www.w3.org/2000/svg"
+xmlns:xlink="http://www.w3.org/1999/xlink" style="position: absolute">
+<g id="microphone" data-iconmelon="Simple Line Icons:5e9b934f5f4cc3a96b0a9effa09ee247">
+<g>
+<path  d="M15.977,21.557c2.576,0,4.672-2.096,4.672-4.676V4.67c0-2.575-2.096-4.67-4.672-4.67
+c-2.575,0-4.674,2.095-4.674,4.67v12.211C11.303,19.461,13.401,21.557,15.977,21.557z M12.516,4.67c0-1.906,1.556-3.46,3.461-3.46
+c1.909,0,3.463,1.554,3.463,3.46v12.211c0,1.91-1.554,3.465-3.463,3.465c-1.905,0-3.461-1.555-3.461-3.465V4.67z"></path>
+<path  d="M22.081,12.211c-0.338,0-0.606,0.271-0.606,0.604v4.051c0,3.019-2.454,5.476-5.472,5.476
+c-3.021,0-5.478-2.457-5.478-5.476v-4.051c0-0.334-0.271-0.604-0.604-0.604c-0.334,0-0.609,0.271-0.609,0.604v4.051
+c0,3.469,2.668,6.299,6.055,6.623v7.301h-3.412c-0.332,0-0.606,0.271-0.606,0.604c0,0.334,0.274,0.605,0.606,0.605h8.09
+c0.332,0,0.604-0.271,0.604-0.605c0-0.333-0.271-0.604-0.604-0.604h-3.467v-7.296c3.412-0.298,6.109-3.139,6.109-6.628v-4.051
+C22.688,12.481,22.413,12.211,22.081,12.211z"></path>
+</g>
+</g>
+<filter id='color-shadow-2' data-iconmelon='filter:d8b3243222f113cd0dd357f0aaed2ee9' color-interpolation-filters="sRGB">
+<feComponentTransfer in="SourceGraphic">
+<feFuncR type="discrete" tableValues="1"/>
+<feFuncG type="discrete" tableValues="0.239215686"/>
+<feFuncB type="discrete" tableValues="0.498039216"/>
+</feComponentTransfer>
+<feGaussianBlur stdDeviation="1"/>
+<feOffset dx="1" dy="1" result="shadow"/>
+<feComposite in="SourceGraphic" in2="shadow" operator="over"/>
+</filter>
+</svg>

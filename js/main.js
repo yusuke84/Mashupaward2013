@@ -6,29 +6,37 @@
  * To change this template use File | Settings | File Templates.
  */
 
+
+//定数定義
 var NCMBAPIKEY = '';
 var NCMBCLIKEY = '';
 var PEERJSAPIKEY = '';
 var PEERSERVERHOST = '';
 
-var translatorURL = '';
+var TURNSERVERHOST = '';
+var TURNUSERNAME = '';
+var TURNPASS = '';
 
+var PEERDEBUGMODE = 3;
+
+var TRANSLATORUR = '';
+
+//グルーバルオブジェクト定義
 var peer;
 var myPeerId;
 var callhandl;
 var connhandl;
 var localStream;
-
 var ClientObject;
 var client;
 var userList = [];
 var timer;
 var flag = {status: 'regist'};
-
 var langselecter;
-
 var recognition;
+var recognitionBuffer;
 
+//getUserMediaのブラウザインターオペラビリティ対応
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia
 
 // SpeechSynthesisオブジェクトを生成
@@ -41,6 +49,7 @@ msgSpeech.onend = function(e) {
     console.log('Finished in ' + event.elapsedTime + ' seconds.');
 };
 
+//nifty BaaSのライブラリを初期化
 NCMB.initialize(NCMBAPIKEY, NCMBCLIKEY);
 ClientObject = NCMB.Object.extend('client');
 
@@ -133,14 +142,29 @@ function speechStart(){
     recognition.onresult = function(event) {
         for(var i=event.resultIndex; i<event.results.length; i++){
             var result = event.results[i];
-            if(result.isFinal && langselecter.transfrom != langselecter.transto){
-                $.getJSON(translatorURL,{text: result[0].transcript,from: langselecter.transfrom,to: langselecter.transto},
+            /*if(result.isFinal && langselecter.transfrom != langselecter.transto){
+                $.getJSON(TRANSLATORUR,{text: result[0].transcript,from: langselecter.transfrom,to: langselecter.transto},
                     function(json){
                         sendMesg(JSON.stringify($(json.translation).text()));
                     }
                 );
             }else if(result.isFinal && langselecter.transfrom == langselecter.transto){
                 sendMesg(JSON.stringify(result[0].transcript));
+            }*/
+            if(langselecter.transfrom != langselecter.transto){
+                $.getJSON(TRANSLATORUR,{text: result[0].transcript,from: langselecter.transfrom,to: langselecter.transto},
+                    function(json){
+                        recognitionBuffer = {
+                            isFinal: result.isFinal,
+                            resultText: JSON.stringify($(json.translation).text())
+                        }
+                    }
+                );
+            }else if(langselecter.transfrom == langselecter.transto){
+                recognitionBuffer = {
+                    isFinal: result.isFinal,
+                    resultText: JSON.stringify(result[0].transcript)
+                }
             }
             console.log('result[' + i + '] = ' + result[0].transcript);
             console.log('confidence = ' + result[0].confidence);
@@ -230,20 +254,33 @@ function translangselecter(peerlang){
 }
 
 function sendMesg(msg){
-
     console.log(msg);
     str2binary(msg,function(data){
         var message_ = {
-            transcript: data
-        }
+        transcript: data
+    }
         console.log(message_);
         connhandl.send(message_);
     });
 
 }
 
+function initPeerjs(peerid){
+    peer = new Peer(peerid,{
+        host: PEERSERVERHOST,
+        key: PEERJSAPIKEY,
+        config: { 'iceServers': [
+            { 'url':'turn:'+TURNSERVERHOST,'username':TURNUSERNAME,'credential':TURNPASS },
+            { 'url':'turn:'+TURNSERVERHOST+':443?transport=tcp','username':TURNUSERNAME,'credential':TURNPASS },
+        ] },
+        debug: PEERDEBUGMODE
+    });
+
+}
+
 $(document).ready(function(){
 
+    $('#mic').addClass('displaynone');
 
     //名前を入力したら登録ボタンが押下可能に
     $('#name').each(function(){
@@ -256,9 +293,18 @@ $(document).ready(function(){
         })
     });
 
+    $('#mic').mousedown(function(){
+    });
+
+    $('#mic').mouseup(function(){
+        sendMesg(recognitionBuffer);
+    });
+
     //登録ボタン
     $('#regist').on('click',function(e){
         e.preventDefault();
+
+        $('#mic').removeClass('displaynone');
 
         var query_ = new NCMB.Query(ClientObject);
         var results_ = null;
@@ -278,12 +324,8 @@ $(document).ready(function(){
 
                         client = new ClientObject();
 
-                        peer = new Peer({
-                            host: PEERSERVERHOST,
-                            key: PEERJSAPIKEY,
-                            secure: false,
-                            debug: 3
-                        });
+                        //Peerオブジェクトを初期化
+                        initPeerjs();
 
                         peer.on('open', function(id) {
 
@@ -327,12 +369,8 @@ $(document).ready(function(){
                             }
                         });
 
-                        peer = new Peer(myPeerId,{
-                            host: PEERSERVERHOST,
-                            key: PEERJSAPIKEY,
-                            secure: false,
-                            debug: 3
-                        });
+                        //Peerオブジェクトを初期化
+                        initPeerjs(myPeerId);
 
                     }
 
@@ -502,6 +540,7 @@ $(document).ready(function(){
 
     //終了ボタン
     $('#exit').on('click',function(e){
+        $('#mic').addClass('displaynone');
         deleteClient();
         finishVideoChat();
         clearInterval(timer);

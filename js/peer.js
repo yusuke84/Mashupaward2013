@@ -2002,6 +2002,7 @@ DataConnection.prototype.handleMessage = function(message) {
       break;
     case 'CANDIDATE':
       Negotiator.handleCandidate(this, payload.candidate);
+      console.log(JSON.stringify(payload.candidate));
       break;
     default:
       util.warn('Unrecognized message type:', message.type, 'from peer:', this.peer);
