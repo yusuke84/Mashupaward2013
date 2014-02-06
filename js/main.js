@@ -12,13 +12,11 @@ var NCMBAPIKEY = '';
 var NCMBCLIKEY = '';
 var PEERJSAPIKEY = '';
 var PEERSERVERHOST = '';
-
+var SECUREFLAG = false;
 var TURNSERVERHOST = '';
 var TURNUSERNAME = '';
 var TURNPASS = '';
-
 var PEERDEBUGMODE = 3;
-
 var TRANSLATORUR = '';
 
 //グルーバルオブジェクト定義
@@ -34,7 +32,7 @@ var timer;
 var flag = {status: 'regist'};
 var langselecter;
 var recognition;
-var recognitionBuffer;
+var recognitionBuffer = {isFinal: '',resultText: ''};
 
 //getUserMediaのブラウザインターオペラビリティ対応
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia
@@ -151,21 +149,11 @@ function speechStart(){
             }else if(result.isFinal && langselecter.transfrom == langselecter.transto){
                 sendMesg(JSON.stringify(result[0].transcript));
             }*/
-            if(langselecter.transfrom != langselecter.transto){
-                $.getJSON(TRANSLATORUR,{text: result[0].transcript,from: langselecter.transfrom,to: langselecter.transto},
-                    function(json){
-                        recognitionBuffer = {
-                            isFinal: result.isFinal,
-                            resultText: JSON.stringify($(json.translation).text())
-                        }
-                    }
-                );
-            }else if(langselecter.transfrom == langselecter.transto){
-                recognitionBuffer = {
-                    isFinal: result.isFinal,
-                    resultText: JSON.stringify(result[0].transcript)
-                }
+            recognitionBuffer = {
+                isFinal: result.isFinal,
+                resultText: result[0].transcript
             }
+            updateTelopMyVoice(result[0].transcript);
             console.log('result[' + i + '] = ' + result[0].transcript);
             console.log('confidence = ' + result[0].confidence);
             console.log('is Final ? ' + result.isFinal);
@@ -211,12 +199,18 @@ function binary2str(message, callback){
 }
 
 function updateTelop(msg){
+    $('#myTelop').removeClass('bgBlue');
     binary2str(msg,function(data){
         console.log(data);
         $('#myTelop').text(data.transcript);
         msgSpeech.text = data.transcript;
         speechSynthesis.speak(msgSpeech);
     });
+}
+
+function updateTelopMyVoice(msg){
+    $('#myTelop').addClass('bgBlue');
+    $('#myTelop').text(msg);
 }
 
 function speechlangselecter(mylang){
@@ -273,6 +267,7 @@ function initPeerjs(peerid){
             { 'url':'turn:'+TURNSERVERHOST,'username':TURNUSERNAME,'credential':TURNPASS },
             { 'url':'turn:'+TURNSERVERHOST+':443?transport=tcp','username':TURNUSERNAME,'credential':TURNPASS },
         ] },
+        secure: SECUREFLAG,
         debug: PEERDEBUGMODE
     });
 
@@ -297,7 +292,19 @@ $(document).ready(function(){
     });
 
     $('#mic').mouseup(function(){
-        sendMesg(recognitionBuffer);
+        if(langselecter.transfrom != langselecter.transto){
+            $.getJSON(TRANSLATORUR,{text: recognitionBuffer.resultText,from: langselecter.transfrom,to: langselecter.transto},
+                function(json){
+                    sendMesg(JSON.stringify($(json.translation).text()));
+
+                }
+            );
+        }else if(langselecter.transfrom == langselecter.transto){
+            sendMesg(recognitionBuffer.resultText);
+        }
+
+        recognitionBuffer.resultText = '';
+
     });
 
     //登録ボタン
