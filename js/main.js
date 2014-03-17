@@ -13,6 +13,7 @@ var NCMBCLIKEY = '';
 var PEERJSAPIKEY = '';
 var PEERSERVERHOST = '';
 var SECUREFLAG = false;
+var PORT = 443;
 var TURNSERVERHOST = '';
 var TURNUSERNAME = '';
 var TURNPASS = '';
@@ -36,16 +37,6 @@ var recognitionBuffer = {isFinal: '',resultText: ''};
 
 //getUserMediaのブラウザインターオペラビリティ対応
 navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia
-
-// SpeechSynthesisオブジェクトを生成
-var msgSpeech = new SpeechSynthesisUtterance();
-msgSpeech.volume = 1; // 0 to 1
-msgSpeech.rate = 1; // 0.1 to 10
-msgSpeech.pitch = 2; //0 to 2
-msgSpeech.lang = 'en-US';
-msgSpeech.onend = function(e) {
-    console.log('Finished in ' + event.elapsedTime + ' seconds.');
-};
 
 //nifty BaaSのライブラリを初期化
 NCMB.initialize(NCMBAPIKEY, NCMBCLIKEY);
@@ -140,7 +131,7 @@ function speechStart(){
     recognition.onresult = function(event) {
         for(var i=event.resultIndex; i<event.results.length; i++){
             var result = event.results[i];
-            /*if(result.isFinal && langselecter.transfrom != langselecter.transto){
+            if(result.isFinal && langselecter.transfrom != langselecter.transto){
                 $.getJSON(TRANSLATORUR,{text: result[0].transcript,from: langselecter.transfrom,to: langselecter.transto},
                     function(json){
                         sendMesg(JSON.stringify($(json.translation).text()));
@@ -148,7 +139,7 @@ function speechStart(){
                 );
             }else if(result.isFinal && langselecter.transfrom == langselecter.transto){
                 sendMesg(JSON.stringify(result[0].transcript));
-            }*/
+            }
             recognitionBuffer = {
                 isFinal: result.isFinal,
                 resultText: result[0].transcript
@@ -203,8 +194,6 @@ function updateTelop(msg){
     binary2str(msg,function(data){
         console.log(data);
         $('#myTelop').text(data.transcript);
-        msgSpeech.text = data.transcript;
-        speechSynthesis.speak(msgSpeech);
     });
 }
 
@@ -265,13 +254,15 @@ function initPeerjs(peerid){
         key: PEERJSAPIKEY,
         config: { 'iceServers': [
             { 'url':'turn:'+TURNSERVERHOST,'username':TURNUSERNAME,'credential':TURNPASS },
-            { 'url':'turn:'+TURNSERVERHOST+':443?transport=tcp','username':TURNUSERNAME,'credential':TURNPASS },
+            { 'url':'turn:'+TURNSERVERHOST+':443?transport=tcp','username':TURNUSERNAME,'credential':TURNPASS }
         ] },
         secure: SECUREFLAG,
+        port: PORT,
         debug: PEERDEBUGMODE
     });
 
 }
+
 
 $(document).ready(function(){
 
@@ -283,6 +274,7 @@ $(document).ready(function(){
             if($('#name').val() != ''){
                 $('#regist').attr('disabled', false);
             }else{
+
                 $('#regist').attr('disabled', true);
             }
         })
@@ -388,6 +380,8 @@ $(document).ready(function(){
 
                         localStream = stream;
 
+                    },function(error){
+                        console.log(error);
                     });
 
                     //着信時
