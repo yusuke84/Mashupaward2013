@@ -131,7 +131,7 @@ function speechStart(){
     recognition.onresult = function(event) {
         for(var i=event.resultIndex; i<event.results.length; i++){
             var result = event.results[i];
-            if(result.isFinal && langselecter.transfrom != langselecter.transto){
+            /**if(result.isFinal && langselecter.transfrom != langselecter.transto){
                 $.getJSON(TRANSLATORUR,{text: result[0].transcript,from: langselecter.transfrom,to: langselecter.transto},
                     function(json){
                         sendMesg(JSON.stringify($(json.translation).text()));
@@ -139,7 +139,7 @@ function speechStart(){
                 );
             }else if(result.isFinal && langselecter.transfrom == langselecter.transto){
                 sendMesg(JSON.stringify(result[0].transcript));
-            }
+            }*/
             recognitionBuffer = {
                 isFinal: result.isFinal,
                 resultText: result[0].transcript
@@ -374,7 +374,7 @@ $(document).ready(function(){
                     }
 
                     //メディア取得
-                    navigator.getUserMedia({audio: false, video: true}, function(stream){
+                    navigator.getUserMedia({audio: true, video: true}, function(stream){
                         // Set your video displays
                         $('#myVideo').prop('src', URL.createObjectURL(stream));
 
